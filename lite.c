@@ -14,12 +14,14 @@ typedef struct _node
 }Line,*Text;
 
 static int currentlinenumber=1;
-char *fname="\0";
-static int hasfilename=0;
-static int filechanged=0;
-static int filesaved=1;
-static int maxlinenumber=0;
-Text head;
+
+static int hasfilename=0;//boolean type to record filename exist or not
+static int filechanged=0;//record status of file
+static int filesaved=1;//record status of file
+static int maxlinenumber=0;//record the max line number of the file.
+Text head;//head is set to be global,representing the current linked list.
+
+//create a text from the command line
 Text createText()
 {
     head = (Text)malloc(sizeof(Line));
@@ -45,6 +47,7 @@ Text createText()
     temp->next=NULL;
     return head;
 }
+//create a text from a file
 Text openFile(char* fn)
 {
     head = (Text)malloc(sizeof(Line));
@@ -54,23 +57,34 @@ Text openFile(char* fn)
     FILE* fp = fopen(fn,"r");
     if(fp==NULL)
     {
-        printf("file can not open");
+        printf("file does not exist.\n");
         return NULL;
     }
     int lnumber=1;
-    printf("Existing file\"%s\"\n",fn);
-    while(!feof(fp))
+    printf("Existing file \"%s\"\n",fn);
+    char ch=fgetc(fp);
+    if(ch==EOF)//if the file is empty
     {
-        char *current=(char*)malloc(sizeof(char)*LINELENGTH);
-        fgets(current,LINELENGTH,fp);
-        current[strlen(current)-1]='\0';//fgets() will receive the '\n' and this line will deal with the last '\n'
-        curr = (Text)malloc(sizeof(Line));
-        curr->data=current;
-        curr->linenumber=lnumber++;
-        maxlinenumber++;
-        temp->next=curr;
-        temp=temp->next;
+        printf("Empty file\n");
     }
+    else
+    {
+        rewind(fp);//set the file position to the start.
+        while(!feof(fp))
+        {
+            char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+            fgets(current,LINELENGTH,fp);
+            if(strlen(current)>1)
+                current[strlen(current)-1]='\0';//fgets() will receive the '\n' and this line will deal with the last '\n'
+            curr = (Text)malloc(sizeof(Line));
+            curr->data=current;
+            curr->linenumber=lnumber++;
+            maxlinenumber++;
+            temp->next=curr;
+            temp=temp->next;
+        }
+    }
+    fflush(fp);
     fclose(fp);
     temp->next=NULL;
     return head;
@@ -78,13 +92,13 @@ Text openFile(char* fn)
 
 void printLinkedList(Text t)
 {
-    Text tt=t;
-    tt=tt->next;
-    if(tt==NULL)
+    if(t==NULL)
     {
-        printf("File is empty\n");
+        printf("Empty file\n");
         return;
     }
+    Text tt=t;
+    tt=tt->next;
     while(tt!=NULL)
     {
         if(tt->linenumber==currentlinenumber)
@@ -95,13 +109,14 @@ void printLinkedList(Text t)
             printf("Line\t%d:%s\n",tt->linenumber,tt->data);
         tt=tt->next;
     }
+    return;
 }
-
+//when command is '+' or <Enter>,this function is called.
 int increaseLineNumber(Text t)
 {
     return currentlinenumber<maxlinenumber?++currentlinenumber:maxlinenumber;
 }
-
+//when command is '-' ,this function is called.
 int decreaseLineNumber(Text t)
 {
     return currentlinenumber>1?--currentlinenumber:1;
@@ -109,16 +124,18 @@ int decreaseLineNumber(Text t)
 
 void insertLine(Text t)
 {
-    if(!hasfilename)
+    if(t==NULL)//if text does not exist,call createText()
     {
         t=createText();
+        filechanged=1;
+        filesaved=0;
         return;
     }
     Line *curr;
     Line *temp;
     Line *behind;
     int lnumber = currentlinenumber;
-    if(currentlinenumber==1)
+    if(currentlinenumber==1)//insert from first line.
     {
         temp=t;
         behind=t->next;
@@ -138,6 +155,7 @@ void insertLine(Text t)
         lnumber--;
         currentlinenumber=lnumber;
         temp->next=behind;
+        // increase the line number behind current line.
         while(behind!=NULL)
         {
             behind->linenumber+=lnumber;
@@ -173,11 +191,21 @@ void insertLine(Text t)
         }
 
     }
+    //if you insert some line,the file was changed and file was not saved until you call saveFile() function.
+    filechanged=1;
     filesaved=0;
 }
 
+//similar as the insertLine() function
 void appendLine(Text t)
 {
+    if(t==NULL)
+    {
+        t=createText();
+        filechanged=1;
+        filesaved=0;
+        return;
+    }
     Line *curr;
     Line *temp;
     Line *behind;
@@ -188,7 +216,6 @@ void appendLine(Text t)
         temp=temp->next;
     }
     behind=temp->next;
-
     while(1)
     {
         char *current=(char*)malloc(sizeof(char)*LINELENGTH);
@@ -210,6 +237,7 @@ void appendLine(Text t)
         behind->linenumber=++lnumber;
         behind=behind->next;
     }
+    filechanged=1;
     filesaved=0;
 }
 
@@ -220,6 +248,9 @@ void deleteLine(Text t)
     Line *temp;
     Line *behind;
     temp=t->next;
+    //if linked list is null,you can not delete any line
+    if(temp==NULL)
+        return;
     if(lnumber==1)
     {
         t->next=temp->next;
@@ -255,50 +286,49 @@ void deleteLine(Text t)
         if(currentlinenumber>maxlinenumber)
             currentlinenumber=maxlinenumber;
     }
+    filechanged=1;
     filesaved=0;
 }
 
 void printTheLine(Text t,int number)
 {
+    if(t==NULL)
+        return;
     Text tt=t;
     tt=tt->next;
-    Text p;
-    if(number<=1)
+
+    if(number<1 || number>maxlinenumber)
     {
-        printf("--->\t%d:%s\n",tt->linenumber,tt->data);
-        currentlinenumber=1;
+        printf("Line number does not exits: command ignored\n");
         return;
-    }else if(number>=maxlinenumber)
+    }
+else
     {
-        while(tt!=NULL)
-        {
-            p=tt;
-            tt=tt->next;
-        }
-        printf("--->\t%d:%s\n",p->linenumber,p->data);
-        currentlinenumber=maxlinenumber;
-        return;
-    }else
-    {
-        while(tt->linenumber<number)
+        while(tt!=NULL && tt->linenumber<number)
         {
             tt=tt->next;
         }
-        printf("--->\t%d:%s\n",tt->linenumber,tt->data);
-        currentlinenumber=number;
+        if(tt!=NULL)
+        {
+            printf("--->\t%d:%s\n",tt->linenumber,tt->data);
+            currentlinenumber=number;
+        }
         return;
     }
 }
-
+//after you call delete function,the printCurrentLine function is called.
 void printCurrentLine(Text t)
 {
+    if(t==NULL)
+        return;
     Text tt;
     tt=t->next;
-    while(tt->linenumber<currentlinenumber)
+    while(tt!=NULL && tt->linenumber<currentlinenumber)
     {
         tt=tt->next;
     }
-    printf("--->\t%d:%s\n",tt->linenumber,tt->data);
+    if(tt!=NULL)
+        printf("--->\t%d:%s\n",tt->linenumber,tt->data);
     return;
 }
 
@@ -320,13 +350,10 @@ void printHelp()
     printf("\t-:\tdecrement line and print\n");
     printf("\tnumber:\tmake 'number' the current line\n");
 }
+
+//free the data and then free text.
 void quit(Text text)
 {
-    if(filechanged && !filesaved)
-    {
-        printf("Cannot quit as file has changed.Use 'x' to force exit");
-        return;
-    }
     printf("bye\n");
     Text p=text;
     while(text!=NULL)
@@ -351,26 +378,32 @@ int isNumber(char *number)
     }
     return atoi(number);
 }
+char* setFilename(char* fn)
+{
+    hasfilename=1;
+    return fn;
+}
 
-void getFileName(char* fn)
+char* getFileNameFromCommand(char ch[],char* fn)
 {
     if(!hasfilename)
     {
+        strcpy(fn,ch+2);
         //fn=ch+2;
-        printf("Creating file \"%s\"\n",fn);
         FILE *fp=fopen(fn,"w");
         fclose(fp);
+        printf("Creating file \"%s\"\n",fn);
         hasfilename=1;
     }
     else
     {
         printf("You have opened a file.\n");
     }
+    return fn;
 }
 
 void saveFile(Text t,char* fn)
 {
-    printf("fn:%s\n",fn);
     if(!hasfilename)
     {
         printf("No filename. Use '-f<name>' command\n");
@@ -399,14 +432,20 @@ void saveFile(Text t,char* fn)
         filesaved = 1;
     }
 }
-
-void waitCommand()
+//a loop waiting for command
+void waitCommand(char *fn)
 {
-    //char *fname=(char*)malloc(FNAMELENGTH*sizeof(char));
+    char *fname=(char*)malloc(FNAMELENGTH*sizeof(char));
+    if(hasfilename)
+        strcpy(fname,fn);
+
     while(1)
     {
         char command[CMDLENGTH]="\0";
         printf("? ");
+
+        //here the gets function will have some warning at some compilers because this function does not check the memory and the memory may leak.
+        //but I cannot find another better function to receive a line from stdin,and using gcc it does works.
         gets(command);
         if(isNumber(command))
         {
@@ -420,8 +459,7 @@ void waitCommand()
             }
             else if((command[0]=='p'||command[0]=='P') && command[1]=='\0')
             {
-                //printf("filename %s\n",anothername);
-                if(head!=NULL||hasfilename)
+                if(head!=NULL || hasfilename)
                 {
                     printLinkedList(head);
                 }
@@ -438,14 +476,17 @@ void waitCommand()
                 }else
                 {
                     quit(head);
+                    free(fname);
                     break;
                 }
             }
             else if((command[0]=='x'||command[0]=='X') && command[1]=='\0')
             {
                 quit(head);
+                free(fname);
+                break;
             }
-            else if((command[0]=='+') && command[1]=='\0')
+            else if((command[0]=='+'|| command[0]=='\0') && command[1]=='\0')
             {
                 printTheLine(head,increaseLineNumber(head));
             }
@@ -468,15 +509,16 @@ void waitCommand()
             else if((command[0]=='d' || command[0]=='D') && command[1]=='\0')
             {
                 deleteLine(head);
+                printCurrentLine(head);
             }
             else if((command[0]=='s' || command[0]=='S') && command[1]=='\0')
             {
+
                 saveFile(head,fname);
             }
             else if((command[0]=='f' || command[0]=='F') && command[1]==' ')
             {
-                fname=command+2;
-                getFileName(fname);
+                fname=getFileNameFromCommand(command,fname);
             }
             else
             {
@@ -489,18 +531,23 @@ void waitCommand()
 
 int main(int argc,char** argv)
 {
+    char *fname="\0";
     if(argc<=1)
     {
         hasfilename=0;
         filesaved=0;
     }
-    else
+    else if(argc==2)
     {
         fname=argv[1];
         hasfilename=1;
         head=openFile(fname);
-        //fname = "test.txt";
     }
-    waitCommand();
+    else
+    {
+        printf("too many arguments\n");
+        return 0;
+    }
+    waitCommand(fname);
     return 0;
 }
