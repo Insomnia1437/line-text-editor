@@ -1,17 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
+#include "lite.h"
 #define LINELENGTH 1000// max length of a line
 #define FNAMELENGTH 100
 #define CMDLENGTH 102
-typedef struct _node
-{
-    int linenumber;
-    char *data;
-    struct _node *next;
-}Line,*Text;
+
 
 static int currentlinenumber=1;
 
@@ -33,10 +27,12 @@ Text createText()
     while(1)
     {
         char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+        memset(current,0,sizeof(char)*LINELENGTH);
         gets(current);
         if(*current == '.')
             break;
         curr = (Text)malloc(sizeof(Line));
+        memset(curr,0,sizeof(Line));
         curr->data=current;
         curr->linenumber=lnumber++;
         maxlinenumber++;
@@ -73,10 +69,12 @@ Text openFile(char* fn)
         while(!feof(fp))
         {
             char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+            memset(current,0,sizeof(char)*LINELENGTH);
             fgets(current,LINELENGTH,fp);
             if(strlen(current)>1)
                 current[strlen(current)-1]='\0';//fgets() will receive the '\n' and this line will deal with the last '\n'
             curr = (Text)malloc(sizeof(Line));
+            memset(curr,0,sizeof(Line));
             curr->data=current;
             curr->linenumber=lnumber++;
             maxlinenumber++;
@@ -142,10 +140,12 @@ void insertLine(Text t)
         while(1)
         {
             char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+            memset(current,0,sizeof(char)*LINELENGTH);
             gets(current);
             if(*current == '.')
                 break;
             curr = (Text)malloc(sizeof(Line));
+            memset(curr,0,sizeof(Line));
             curr->data=current;
             curr->linenumber=lnumber++;
             maxlinenumber++;
@@ -172,10 +172,12 @@ void insertLine(Text t)
         while(1)
         {
             char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+            memset(current,0,sizeof(char)*LINELENGTH);
             gets(current);
             if(*current == '.')
                 break;
             curr = (Text)malloc(sizeof(Line));
+            memset(curr,0,sizeof(Line));
             curr->data=current;
             curr->linenumber=lnumber++;//insert,so the lnumber should less than current line number.
             maxlinenumber++;
@@ -219,10 +221,12 @@ void appendLine(Text t)
     while(1)
     {
         char *current=(char*)malloc(sizeof(char)*LINELENGTH);
+        memset(current,0,sizeof(char)*LINELENGTH);
         gets(current);
         if(*current == '.')
             break;
         curr = (Text)malloc(sizeof(Line));
+        memset(curr,0,sizeof(Line));
         curr->data=current;
         curr->linenumber=++lnumber;
         maxlinenumber++;
@@ -354,15 +358,20 @@ void printHelp()
 //free the data and then free text.
 void quit(Text text)
 {
-    printf("bye\n");
-    Text p=text;
-    while(text!=NULL)
-    {
-        p=text->next;
-        free(text->data);
-        free(text);
-        text=p;
-    }
+        printf("bye\n");
+        Text p=text;
+        while(text!=NULL)
+        {
+            p=text->next;
+            if(text->data!=NULL)
+            {
+                free(text->data);
+                text->data=NULL;
+            }
+            free(text);
+            text=NULL;
+            text=p;
+        }
 }
 int isNumber(char *number)
 {
@@ -436,6 +445,7 @@ void saveFile(Text t,char* fn)
 void waitCommand(char *fn)
 {
     char *fname=(char*)malloc(FNAMELENGTH*sizeof(char));
+    memset(fname,0,sizeof(char)*FNAMELENGTH);
     if(hasfilename)
         strcpy(fname,fn);
 
@@ -477,6 +487,7 @@ void waitCommand(char *fn)
                 {
                     quit(head);
                     free(fname);
+                    fname=NULL;
                     break;
                 }
             }
