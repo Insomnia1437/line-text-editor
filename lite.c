@@ -359,19 +359,19 @@ void printHelp()
 void quit(Text text)
 {
         printf("bye\n");
+        Text head=text;
+        text=text->next;
         Text p=text;
         while(text!=NULL)
         {
             p=text->next;
-            if(text->data!=NULL)
-            {
-                free(text->data);
-                text->data=NULL;
-            }
+            free(text->data);
+            text->data=NULL;
             free(text);
             text=NULL;
             text=p;
         }
+        free(head);
 }
 int isNumber(char *number)
 {
